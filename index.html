@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="wtxt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>WTXT Distributor</title>
+
+    <link rel="stylesheet" type="text/css" href="main.css">
+
+    <script src="node_modules/web3/dist/web3.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.min.js"></script>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script>
+
+</head>
+
+<body ng-controller="mainController">
+
+    <div class="jumbotron text-center">
+        <h1>WTXT Distributor</h1>
+        <p>Use me to distribute token to the given addresses.</p>
+        <h5>Account Balance : {{balance}}</h5>
+    </div>
+
+    <div class="container">
+
+        <!-- <img id="loader" src="https://loading.io/spinners/double-ring/lg.double-ring-spinner.gif">
+        <input type="button" value="Click me" ng-click="hello()" /> -->
+        <form id="subForm" ng-submit="analyzeContent()">
+            <div class="row">
+                <div class="col-sm-6">
+                    <div class="form-group">
+                        <label for="usr">Amount to Transfer:</label>
+                        <input required ng-model="amount" type="number" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="comment">Address List:</label>
+                        <textarea required ng-model="rawData" class="form-control" rows="12" placeholder="0xAa69307379940BA54509Eee810643500189E115F&#10;0xAa69307379940BA54509Eee810643500189E115F&#10;0xAa69307379940BA54509Eee810643500189E115F&#10;0xAa69307379940BA54509Eee810643500189E115F&#10;0xAa69307379940BA54509Eee810643500189E115F&#10;Paste the Tokens here as above..."></textarea>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="form-group">
+                        <label for="usr">No. of Addresses:</label>
+                        <input ng-model="noOfTokens" type="number" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="usr">Completed Addressess:</label>
+                        <input type="number" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="comment">Transactions:</label>
+                        <textarea wrap="soft" ng-model="history" class="form-control" rows="6" readonly></textarea>
+                    </div>
+                    <button ng-enabled="canDistribute" type="submit" class="btn btn-primary">Analyze & Start
+                        Distribution</button>
+                </div>
+            </div>
+        </form>
+
+    </div>
+
+    <script>
+        var app = angular.module('wtxt', []);
+        app.controller('mainController', function ($scope) {
+
+            $scope.amount = 0;
+            $scope.balance = "loading...";
+            $scope.WTXRContract = {};
+            $scope.rawData = "";
+            $scope.tokenList = [];
+            $scope.canDistribute = false;
+            $scope.noOfTokens = 0;
+            $scope.events = {};
+            $scope.history = "";
+
+            $scope.loadDefaults = function () {
+                if (typeof web3 !== 'undefined') {
+                    web3 = new Web3(web3.currentProvider);
+                } else {
+                    web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+                }
+
+                let tokenAddress = "0xf03350f6ae1ff1cb9e39965fab63134dc568a246"; // WTXT
+                //let tokenAddress = "0x193cafb3268237f8895f620f14d936626dcf21f1"; // ETH
+                //let walletAddress = "0xAa69307379940BA54509Eee810643500189E115F";
+
+                web3.eth.defaultAccount = web3.eth.accounts[0];
+
+                let ABI = [{ "constant": true, "inputs": [], "name": "name", "outputs": [{ "name": "", "type": "string" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": false, "inputs": [{ "name": "spender", "type": "address" }, { "name": "tokens", "type": "uint256" }], "name": "approve", "outputs": [{ "name": "success", "type": "bool" }], "payable": false, "stateMutability": "nonpayable", "type": "function" }, { "constant": true, "inputs": [], "name": "totalSupply", "outputs": [{ "name": "", "type": "uint256" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": false, "inputs": [{ "name": "from", "type": "address" }, { "name": "to", "type": "address" }, { "name": "tokens", "type": "uint256" }], "name": "transferFrom", "outputs": [{ "name": "success", "type": "bool" }], "payable": false, "stateMutability": "nonpayable", "type": "function" }, { "constant": true, "inputs": [], "name": "decimals", "outputs": [{ "name": "", "type": "uint8" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": true, "inputs": [], "name": "_totalSupply", "outputs": [{ "name": "", "type": "uint256" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": true, "inputs": [{ "name": "tokenOwner", "type": "address" }], "name": "balanceOf", "outputs": [{ "name": "balance", "type": "uint256" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": false, "inputs": [], "name": "acceptOwnership", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function" }, { "constant": true, "inputs": [], "name": "owner", "outputs": [{ "name": "", "type": "address" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": true, "inputs": [], "name": "symbol", "outputs": [{ "name": "", "type": "string" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": true, "inputs": [{ "name": "a", "type": "uint256" }, { "name": "b", "type": "uint256" }], "name": "safeSub", "outputs": [{ "name": "c", "type": "uint256" }], "payable": false, "stateMutability": "pure", "type": "function" }, { "constant": false, "inputs": [{ "name": "to", "type": "address" }, { "name": "tokens", "type": "uint256" }], "name": "transfer", "outputs": [{ "name": "success", "type": "bool" }], "payable": false, "stateMutability": "nonpayable", "type": "function" }, { "constant": false, "inputs": [{ "name": "addresses", "type": "address[]" }, { "name": "_value", "type": "uint256" }], "name": "distributeToken", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function" }, { "constant": true, "inputs": [{ "name": "", "type": "address" }], "name": "frozenAccount", "outputs": [{ "name": "", "type": "bool" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": true, "inputs": [{ "name": "a", "type": "uint256" }, { "name": "b", "type": "uint256" }], "name": "safeDiv", "outputs": [{ "name": "c", "type": "uint256" }], "payable": false, "stateMutability": "pure", "type": "function" }, { "constant": false, "inputs": [{ "name": "spender", "type": "address" }, { "name": "tokens", "type": "uint256" }, { "name": "data", "type": "bytes" }], "name": "approveAndCall", "outputs": [{ "name": "success", "type": "bool" }], "payable": false, "stateMutability": "nonpayable", "type": "function" }, { "constant": true, "inputs": [{ "name": "a", "type": "uint256" }, { "name": "b", "type": "uint256" }], "name": "safeMul", "outputs": [{ "name": "c", "type": "uint256" }], "payable": false, "stateMutability": "pure", "type": "function" }, { "constant": true, "inputs": [], "name": "newOwner", "outputs": [{ "name": "", "type": "address" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": false, "inputs": [{ "name": "tokenAddress", "type": "address" }, { "name": "tokens", "type": "uint256" }], "name": "transferAnyERC20Token", "outputs": [{ "name": "success", "type": "bool" }], "payable": false, "stateMutability": "nonpayable", "type": "function" }, { "constant": true, "inputs": [{ "name": "tokenOwner", "type": "address" }, { "name": "spender", "type": "address" }], "name": "allowance", "outputs": [{ "name": "remaining", "type": "uint256" }], "payable": false, "stateMutability": "view", "type": "function" }, { "constant": true, "inputs": [{ "name": "a", "type": "uint256" }, { "name": "b", "type": "uint256" }], "name": "safeAdd", "outputs": [{ "name": "c", "type": "uint256" }], "payable": false, "stateMutability": "pure", "type": "function" }, { "constant": false, "inputs": [{ "name": "target", "type": "address" }, { "name": "freeze", "type": "bool" }], "name": "freezeAccount", "outputs": [{ "name": "success", "type": "bool" }], "payable": false, "stateMutability": "nonpayable", "type": "function" }, { "constant": false, "inputs": [{ "name": "_newOwner", "type": "address" }], "name": "transferOwnership", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function" }, { "inputs": [], "payable": false, "stateMutability": "nonpayable", "type": "constructor" }, { "payable": true, "stateMutability": "payable", "type": "fallback" }, { "anonymous": false, "inputs": [{ "indexed": false, "name": "target", "type": "address" }, { "indexed": false, "name": "frozen", "type": "bool" }], "name": "FrozenFunds", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": true, "name": "_from", "type": "address" }, { "indexed": true, "name": "_to", "type": "address" }], "name": "OwnershipTransferred", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": true, "name": "from", "type": "address" }, { "indexed": true, "name": "to", "type": "address" }, { "indexed": false, "name": "tokens", "type": "uint256" }], "name": "Transfer", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": true, "name": "tokenOwner", "type": "address" }, { "indexed": true, "name": "spender", "type": "address" }, { "indexed": false, "name": "tokens", "type": "uint256" }], "name": "Approval", "type": "event" }];
+
+                // Get ERC20 Token contract instance
+                $scope.WTXRContract = web3.eth.contract(ABI).at(tokenAddress);
+                $scope.getAccountBalance();
+
+                $scope.events = $scope.WTXRContract.allEvents({ fromBlock: 0, toBlock: 'latest' });
+                // watch for changes
+                $scope.events.watch(function (error, event) {
+                    console.log("Event Fired: ", event);
+                    if (error != null) {
+                        debugger
+                        console.log("Errorrr.....");
+                    }
+                });
+            };
+
+            $scope.getAccountBalance = function () {
+                // Call balanceOf function
+                $scope.WTXRContract.balanceOf(web3.eth.defaultAccount, (error, balance) => {
+                    // Get decimals
+                    $scope.WTXRContract.decimals((error, decimals) => {
+                        // calculate a balance
+                        $scope.balance = balance.div(10 ** decimals).toString();
+                        console.log("Your account balance is: " + $scope.balance.toString());
+                        $scope.$apply();
+                    });
+                });
+            };
+
+            $scope.analyzeContent = function () {
+                debugger
+                var form = document.getElementById("subForm");
+                if (!form.checkValidity()) {
+                    return
+                }
+                $scope.tokenList = $scope.rawData.split('\n');
+                $scope.noOfTokens = $scope.tokenList.length;
+                $scope.canDistribute = true;
+                $scope.startDistribution();
+            }
+
+            $scope.startDistribution = function () {
+                debugger
+                // Call balanceOf function
+                $scope.WTXRContract.distributeToken($scope.tokenList, $scope.amount, (error, balance) => {
+                    // Get decimals
+                    debugger
+                    var d = new Date(2018, 11, 24, 10, 33, 30);
+                    $scope.history = $scope.history + " " + d.toString() + " - " + balance + "\n";
+                    $scope.$apply();
+                });
+            };
+
+            $scope.loadDefaults();
+        });
+
+    </script>
+
+</body>
+
+</html>
