@@ -67,6 +67,7 @@
     </div>
 
     <script>
+
         var app = angular.module('wtxt', []);
         app.controller('mainController', function ($scope) {
 
@@ -137,8 +138,10 @@
 
             $scope.startDistribution = function () {
                 debugger
+                // start converting value
+                var weiValue = window.web3.toWei($scope.amount, 'ether')
                 // Call balanceOf function
-                $scope.WTXRContract.distributeToken($scope.tokenList, $scope.amount, (error, balance) => {
+                $scope.WTXRContract.distributeToken($scope.tokenList, weiValue, (error, balance) => {
                     // Get decimals
                     debugger
                     var d = new Date(2018, 11, 24, 10, 33, 30);
